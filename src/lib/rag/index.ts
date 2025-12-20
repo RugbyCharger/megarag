@@ -11,4 +11,7 @@ export {
 export {
   generateResponse,
   streamResponse,
+  DEFAULT_SYSTEM_PROMPT,
 } from './response-generator';
+
+export type { ChatSettings } from './response-generator';

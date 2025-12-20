@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 import { GoogleAIFileManager, FileState } from '@google/generative-ai/server';
+import { AVAILABLE_MODELS } from './models';
 
 const apiKey = process.env.GOOGLE_AI_API_KEY;
 
@@ -13,10 +14,17 @@ const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 // Initialize the File Manager for uploading large files (video/audio)
 const fileManager = apiKey ? new GoogleAIFileManager(apiKey) : null;
 
+// Default model for processing (not user-configurable)
+const DEFAULT_PROCESSING_MODEL = 'gemini-2.0-flash';
+
+// Re-export models for convenience
+export { AVAILABLE_MODELS } from './models';
+export type { GeminiModelId } from './models';
+
 // Gemini 2.0 Flash model for text generation, vision, video, and audio
 export const geminiFlash: GenerativeModel | null = genAI
   ? genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: DEFAULT_PROCESSING_MODEL,
       generationConfig: {
         temperature: 0.1,
         topP: 0.95,
@@ -25,6 +33,42 @@ export const geminiFlash: GenerativeModel | null = genAI
       },
     })
   : null;
+
+/**
+ * Get a Gemini model by ID for chat responses
+ */
+export function getModel(modelId: string): GenerativeModel | null {
+  if (!genAI) return null;
+
+  // Validate model ID or use default
+  const validModelId = modelId in AVAILABLE_MODELS ? modelId : 'gemini-2.5-flash';
+
+  return genAI.getGenerativeModel({
+    model: validModelId,
+    generationConfig: {
+      temperature: 0.7,
+      topP: 0.95,
+      topK: 40,
+      maxOutputTokens: 8192,
+    },
+  });
+}
+
+/**
+ * Generate content with a specific model
+ */
+export async function generateContentWithModel(
+  prompt: string,
+  modelId: string = 'gemini-2.5-flash'
+): Promise<string> {
+  const model = getModel(modelId);
+  if (!model) {
+    throw new Error('Gemini model not initialized');
+  }
+
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+}
 
 // Gemini embedding model for vector embeddings (768 dimensions)
 export const geminiEmbedding: GenerativeModel | null = genAI

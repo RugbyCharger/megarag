@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateResponse } from '@/lib/rag';
 import type { QueryMode, QueryRequest } from '@/types';
+import type { ChatSettings } from '@/lib/rag';
 
 const VALID_MODES: QueryMode[] = ['naive', 'local', 'global', 'hybrid', 'mix'];
 
+interface ExtendedQueryRequest extends QueryRequest {
+  system_prompt?: string;
+  model?: string;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json() as QueryRequest;
+    const body = await request.json() as ExtendedQueryRequest;
 
     // Validate query
     if (!body.query || typeof body.query !== 'string' || body.query.trim() === '') {
@@ -29,12 +35,19 @@ export async function POST(request: NextRequest) {
     // Get workspace (default if not provided)
     const workspace = body.workspace || 'default';
 
+    // Build chat settings
+    const settings: ChatSettings = {
+      systemPrompt: body.system_prompt || null,
+      model: body.model || null,
+    };
+
     // Generate response
     const response = await generateResponse(
       body.query.trim(),
       mode,
       workspace,
-      topK
+      topK,
+      settings
     );
 
     return NextResponse.json(response);

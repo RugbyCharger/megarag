@@ -44,6 +44,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const workspace = body.workspace || 'default';
     const title = body.title || 'New Chat';
+    const systemPrompt = body.system_prompt || null;
+    const model = body.model || 'gemini-2.5-flash';
 
     const sessionId = uuidv4();
 
@@ -51,6 +53,8 @@ export async function POST(request: NextRequest) {
       id: sessionId,
       workspace,
       title,
+      system_prompt: systemPrompt,
+      model,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ sessionId, title }, { status: 201 });
+    return NextResponse.json({ sessionId, title, system_prompt: systemPrompt, model }, { status: 201 });
   } catch (error) {
     console.error('Create chat error:', error);
     return NextResponse.json(

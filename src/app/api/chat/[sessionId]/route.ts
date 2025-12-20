@@ -87,7 +87,7 @@ export async function DELETE(
 }
 
 /**
- * PATCH /api/chat/[sessionId] - Update chat session (title)
+ * PATCH /api/chat/[sessionId] - Update chat session (title, system_prompt, model)
  */
 export async function PATCH(
   request: NextRequest,
@@ -97,12 +97,24 @@ export async function PATCH(
     const { sessionId } = await params;
     const body = await request.json();
 
+    // Build update object with only provided fields
+    const updateData: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    if (body.title !== undefined) {
+      updateData.title = body.title;
+    }
+    if (body.system_prompt !== undefined) {
+      updateData.system_prompt = body.system_prompt;
+    }
+    if (body.model !== undefined) {
+      updateData.model = body.model;
+    }
+
     const { error } = await supabaseAdmin
       .from('chat_sessions')
-      .update({
-        title: body.title,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', sessionId);
 
     if (error) {

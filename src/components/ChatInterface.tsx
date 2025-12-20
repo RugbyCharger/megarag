@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Loader2, Sparkles, Plus, HelpCircle, Search, Users, GitBranch, Layers, X } from 'lucide-react';
+import { Send, Loader2, Sparkles, Plus, HelpCircle, Search, Users, GitBranch, Layers, Settings, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -15,6 +16,8 @@ import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -22,6 +25,8 @@ import {
 import { ChatMessage } from './ChatMessage';
 import { SourceReferences } from './SourceReferences';
 import type { QueryMode, QueryResponse } from '@/types';
+import { AVAILABLE_MODELS, type GeminiModelId } from '@/lib/gemini/models';
+import { DEFAULT_SYSTEM_PROMPT } from '@/lib/rag/constants';
 
 /**
  * Message type for chat history
@@ -70,6 +75,14 @@ export function ChatInterface({
   const [error, setError] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(sessionId || null);
 
+  // Chat settings state
+  const [systemPrompt, setSystemPrompt] = useState<string>(DEFAULT_SYSTEM_PROMPT);
+  const [selectedModel, setSelectedModel] = useState<GeminiModelId>('gemini-2.5-flash');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tempSystemPrompt, setTempSystemPrompt] = useState<string>(DEFAULT_SYSTEM_PROMPT);
+  const [tempModel, setTempModel] = useState<GeminiModelId>('gemini-2.5-flash');
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -105,6 +118,16 @@ export function ChatInterface({
           timestamp: new Date(m.created_at),
         }));
         setMessages(loadedMessages);
+
+        // Load session settings
+        if (data.session) {
+          const sessionSystemPrompt = data.session.system_prompt || DEFAULT_SYSTEM_PROMPT;
+          const sessionModel = (data.session.model as GeminiModelId) || 'gemini-2.5-flash';
+          setSystemPrompt(sessionSystemPrompt);
+          setSelectedModel(sessionModel);
+          setTempSystemPrompt(sessionSystemPrompt);
+          setTempModel(sessionModel);
+        }
       }
     } catch (err) {
       console.error('Error loading session:', err);
@@ -115,10 +138,46 @@ export function ChatInterface({
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'New Chat' }),
+      body: JSON.stringify({
+        title: 'New Chat',
+        system_prompt: systemPrompt !== DEFAULT_SYSTEM_PROMPT ? systemPrompt : null,
+        model: selectedModel,
+      }),
     });
     const data = await response.json();
     return data.sessionId;
+  };
+
+  const saveSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      // Update local state
+      setSystemPrompt(tempSystemPrompt);
+      setSelectedModel(tempModel);
+
+      // If we have a session, save to database
+      if (currentSessionId) {
+        await fetch(`/api/chat/${currentSessionId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_prompt: tempSystemPrompt !== DEFAULT_SYSTEM_PROMPT ? tempSystemPrompt : null,
+            model: tempModel,
+          }),
+        });
+      }
+
+      setSettingsOpen(false);
+    } catch (err) {
+      console.error('Error saving settings:', err);
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const resetToDefaults = () => {
+    setTempSystemPrompt(DEFAULT_SYSTEM_PROMPT);
+    setTempModel('gemini-2.5-flash');
   };
 
   const saveMessage = async (
@@ -192,6 +251,8 @@ export function ChatInterface({
           query: userMessage.content,
           mode: queryMode,
           top_k: 10,
+          system_prompt: systemPrompt !== DEFAULT_SYSTEM_PROMPT ? systemPrompt : undefined,
+          model: selectedModel,
         }),
       });
 
@@ -243,6 +304,11 @@ export function ChatInterface({
     setCurrentSessionId(null);
     setSelectedMessage(null);
     setError(null);
+    // Reset settings to defaults for new chat
+    setSystemPrompt(DEFAULT_SYSTEM_PROMPT);
+    setSelectedModel('gemini-2.5-flash');
+    setTempSystemPrompt(DEFAULT_SYSTEM_PROMPT);
+    setTempModel('gemini-2.5-flash');
     onNewChat?.();
   };
 
@@ -348,10 +414,103 @@ export function ChatInterface({
             </Dialog>
           </div>
 
-          <Button variant="outline" size="sm" onClick={handleNewChat}>
-            <Plus className="h-4 w-4 mr-1" />
-            New Chat
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Settings button */}
+            <Dialog open={settingsOpen} onOpenChange={(open) => {
+              setSettingsOpen(open);
+              if (open) {
+                setTempSystemPrompt(systemPrompt);
+                setTempModel(selectedModel);
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Settings className="h-4 w-4 mr-1" />
+                  Settings
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Chat Settings</DialogTitle>
+                  <DialogDescription>
+                    Customize how the AI responds. These settings are saved per chat session.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-6 py-4">
+                  {/* Model Selection */}
+                  <div className="space-y-2">
+                    <Label htmlFor="model">AI Model</Label>
+                    <Select value={tempModel} onValueChange={(v) => setTempModel(v as GeminiModelId)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.values(AVAILABLE_MODELS).map((model) => (
+                          <SelectItem key={model.id} value={model.id}>
+                            <div className="flex flex-col items-start">
+                              <span>{model.name}</span>
+                              <span className="text-xs text-muted-foreground">{model.description}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Choose the model for generating responses. Pro models are more capable but slower.
+                    </p>
+                  </div>
+
+                  {/* System Prompt */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="system-prompt">System Prompt</Label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={resetToDefaults}
+                        className="text-xs"
+                      >
+                        Reset to Default
+                      </Button>
+                    </div>
+                    <Textarea
+                      id="system-prompt"
+                      value={tempSystemPrompt}
+                      onChange={(e) => setTempSystemPrompt(e.target.value)}
+                      placeholder="Enter custom instructions for the AI..."
+                      className="min-h-[200px] font-mono text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      The system prompt controls how the AI behaves and responds. Customize to change
+                      tone, format, or add specific instructions.
+                    </p>
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setSettingsOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={saveSettings} disabled={isSavingSettings}>
+                    {isSavingSettings ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Settings'
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Button variant="outline" size="sm" onClick={handleNewChat}>
+              <Plus className="h-4 w-4 mr-1" />
+              New Chat
+            </Button>
+          </div>
         </div>
       </div>
 
