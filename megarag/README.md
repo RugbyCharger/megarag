@@ -504,11 +504,13 @@ Now open `.env.local` in any text editor and fill in your values:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 
 # Anon key - safe to expose in browser (from Settings → API)
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvdXItcHJvamVjdC1pZCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNjg0NTM5NjQwLCJleHAiOjIwMDAxMTU2NDB9.your-anon-key
+# Looks like: eyJhbGc... (a long string)
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-from-supabase-dashboard
 
 # Service role key - KEEP THIS SECRET (from Settings → API)
 # This key has full access to your database
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvdXItcHJvamVjdC1pZCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE2ODQ1Mzk2NDAsImV4cCI6MjAwMDExNTY0MH0.your-service-role-key
+# Looks like: eyJhbGc... (a long string, different from anon key)
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-from-supabase-dashboard
 
 # ===========================================
 # GOOGLE AI CONFIGURATION
