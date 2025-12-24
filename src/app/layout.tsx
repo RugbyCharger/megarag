@@ -18,7 +18,11 @@ export const metadata: Metadata = {
   title: "MegaRAG - Intelligent Document Assistant",
   description: "Upload documents and chat with AI to get answers from your knowledge base",
   icons: {
-    icon: "/icon.png",
+    icon: [
+      { url: "/icon.png" },
+      { url: "/favicon.ico" },
+    ],
+    shortcut: "/favicon.ico",
     apple: "/apple-icon.png",
   },
 };
