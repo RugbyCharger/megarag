@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { MessageSquare, RefreshCw, Microscope, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DocumentUploader, DocumentList, ThemeToggle, DocumentListSkeleton, Logo, CommandPalette } from '@/components';
+import { DocumentUploader, DocumentList, ThemeToggle, DocumentListSkeleton, Logo } from '@/components';
 import { toast } from 'sonner';
 import type { Document } from '@/types';
 
@@ -107,7 +107,7 @@ export default function DashboardPage() {
               </div>
             </button>
             <div className="flex items-center gap-2">
-              <CommandPalette />
+
               <ThemeToggle />
               <Button variant="outline" size="sm" onClick={() => fetchDocuments(true)} disabled={isRefreshing}>
                 <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
